@@ -1,2 +1,2 @@
-# opengl-renderer
+# OpenGL Renderer
 In-Progress Renderer
