@@ -1,0 +1,27 @@
+# Directories
+bin/
+build/
+out/
+.vs/
+
+# Visual Studio build artifacts
+*.sln
+*.vcxproj
+*.vcxproj.*
+*.user
+*.filters
+
+# Build output directories
+x64/
+*.obj
+*.pdb
+*.ipch
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cache
+*.db
+
+# VS local settings
+.vs/
