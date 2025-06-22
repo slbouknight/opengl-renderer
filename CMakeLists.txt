@@ -11,8 +11,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Define source files (explicitly)
 set(SOURCES
     src/main.cpp
-    src/Camera.cpp
-    src/Shader.cpp
+    src/glad.c
+    src/stb_image.cpp
 )
 
 # Optional: include headers for IDE visibility (not required for compilation)
@@ -23,6 +23,10 @@ set(HEADERS
 
 # Define the executable target
 add_executable(opengl-renderer ${SOURCES} ${HEADERS})
+
+# Launch VS from /bin
+set_target_properties(opengl-renderer PROPERTIES 
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
 
 # Group headers and source files in VS Solution Explorer
 source_group("Header Files" FILES ${HEADERS})
@@ -42,6 +46,19 @@ target_link_libraries(opengl-renderer
     "${CMAKE_SOURCE_DIR}/lib/assimp-vc143-mtd.lib"
     opengl32
 )
+
+# Copy shader files to the output directory
+file(GLOB SHADERS
+    ${CMAKE_SOURCE_DIR}/src/*.vs
+    ${CMAKE_SOURCE_DIR}/src/*.fs
+)
+
+foreach(SHADER ${SHADERS})
+    add_custom_command(TARGET opengl-renderer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${SHADER}
+        $<TARGET_FILE_DIR:opengl-renderer>)
+endforeach()
 
 # Post-build: copy assimp DLL into binary output directory
 add_custom_command(TARGET opengl-renderer POST_BUILD
