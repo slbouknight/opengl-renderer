@@ -10,7 +10,9 @@ enum Camera_Movement {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    UP,
+    DOWN,
 };
 
 // Default camera values
@@ -31,6 +33,7 @@ public:
     glm::vec3 Up;
     glm::vec3 Right;
     glm::vec3 WorldUp;
+
     // euler Angles
     float Yaw;
     float Pitch;
@@ -76,6 +79,10 @@ public:
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
+        if (direction == UP)
+            Position += WorldUp * velocity;
+        if (direction == DOWN)
+            Position -= WorldUp * velocity;
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -108,6 +115,15 @@ public:
             Zoom = 1.0f;
         if (Zoom > 45.0f)
             Zoom = 45.0f;
+    }
+
+    // Reorients the camera to look at a focus point from current position
+    void SetFrontFromPosition(const glm::vec3& focusPoint)
+    {
+        Front = glm::normalize(focusPoint - Position);
+        Yaw = glm::degrees(atan2(Front.z, Front.x)) - 90.0f;
+        Pitch = glm::degrees(asin(Front.y));
+        updateCameraVectors(); // internal sync
     }
 
 private:
