@@ -389,7 +389,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     {
         rightMouseHeld = false;
         resetMousePosition = true;
-        // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 
     // Middle Mouse Button Check
