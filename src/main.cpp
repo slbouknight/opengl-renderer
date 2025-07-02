@@ -69,7 +69,7 @@ int main()
 
     // Build and compile shader program
     // --------------------------------
-    Shader ourShader("camera.vs", "camera.fs");
+    Shader ourShader("shaders/camera.vs", "shaders/camera.fs");
 
     // Set up vertex data, buffers, and configure vertex attributes
     // ------------------------------------------------------------------

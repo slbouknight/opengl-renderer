@@ -47,19 +47,6 @@ target_link_libraries(opengl-renderer
     opengl32
 )
 
-# Copy shader files to the output directory
-file(GLOB SHADERS
-    ${CMAKE_SOURCE_DIR}/src/*.vs
-    ${CMAKE_SOURCE_DIR}/src/*.fs
-)
-
-foreach(SHADER ${SHADERS})
-    add_custom_command(TARGET opengl-renderer POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${SHADER}
-        $<TARGET_FILE_DIR:opengl-renderer>)
-endforeach()
-
 # Post-build: copy assimp DLL into binary output directory
 add_custom_command(TARGET opengl-renderer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -74,3 +61,9 @@ add_custom_command(TARGET opengl-renderer POST_BUILD
         $<TARGET_FILE_DIR:opengl-renderer>/resources
 )
 
+# Post-build: Copy the 'shaders' folder to the output directory (bin/)
+add_custom_command(TARGET opengl-renderer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:opengl-renderer>/shaders
+)
