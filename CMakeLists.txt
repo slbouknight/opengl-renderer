@@ -8,17 +8,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Output executable to bin/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Define source files (explicitly)
-set(SOURCES
-    src/main.cpp
-    src/glad.c
-    src/stb_image.cpp
+# Define source files, automatically include all .cpp and .c source files
+file(GLOB_RECURSE SOURCES
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/*.c
 )
 
 # Optional: include headers for IDE visibility (not required for compilation)
-set(HEADERS
-    include/Camera.h
-    include/Shader.h
+file(GLOB HEADERS
+    ${CMAKE_SOURCE_DIR}/include/*.h
 )
 
 # Define the executable target
