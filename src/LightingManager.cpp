@@ -1,90 +1,186 @@
+/* LightingManager.cpp */
 #include "LightingManager.h"
-#include "Shader.h" // Your existing wrapper
+#include "Shader.h"
 
+#include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
-void LightingManager::addLight(const Light& light) {
-    lights.push_back(light);
-}
+//------------------------------------------------------------------------------
+// Helper: single cube VAO for drawing point-light shapes
+namespace {
+    static unsigned int cubeVAO = 0;
+    static unsigned int cubeVBO = 0;
+    void initCube() {
+        if (cubeVAO != 0)
+            return;
+        float vertices[] = {
+            // positions
+            -0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f,  0.5f, -0.5f,
+             0.5f,  0.5f, -0.5f,
+            -0.5f,  0.5f, -0.5f,
+            -0.5f, -0.5f, -0.5f,
 
-void LightingManager::removeLight(size_t index) {
-    if (index < lights.size()) {
-        lights.erase(lights.begin() + index);
+            -0.5f, -0.5f,  0.5f,
+             0.5f, -0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f,  0.5f,
+            -0.5f, -0.5f,  0.5f,
+
+            -0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f, -0.5f,
+            -0.5f, -0.5f, -0.5f,
+            -0.5f, -0.5f, -0.5f,
+            -0.5f, -0.5f,  0.5f,
+            -0.5f,  0.5f,  0.5f,
+
+             0.5f,  0.5f,  0.5f,
+             0.5f,  0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+
+            -0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f,  0.5f,
+             0.5f, -0.5f,  0.5f,
+            -0.5f, -0.5f,  0.5f,
+            -0.5f, -0.5f, -0.5f,
+
+            -0.5f,  0.5f, -0.5f,
+             0.5f,  0.5f, -0.5f,
+             0.5f,  0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f, -0.5f
+        };
+        glGenVertexArrays(1, &cubeVAO);
+        glGenBuffers(1, &cubeVBO);
+        glBindVertexArray(cubeVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
     }
 }
 
-void LightingManager::clearLights() {
-    lights.clear();
+//------------------------------------------------------------------------------
+// DirectionalLight
+DirectionalLight::DirectionalLight(const DirectionalLightDesc& desc)
+    : m_desc(desc)
+{
 }
 
-void LightingManager::initializeDefaultLights() {
-    // Add 1 directional, 4 point, 1 spotlight
-    Light dir;
-    dir.type = LightType::Directional;
-    dir.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
-    dir.ambient = glm::vec3(0.05f);
-    dir.diffuse = glm::vec3(0.4f);
-    dir.specular = glm::vec3(0.5f);
-    lights.push_back(dir);
-
-    glm::vec3 pointPositions[] = {
-        { 0.7f,  0.2f,  2.0f},
-        { 2.3f, -3.3f, -4.0f},
-        {-4.0f,  2.0f, -12.0f},
-        { 0.0f,  0.0f, -3.0f}
-    };
-
-    for (const auto& pos : pointPositions) {
-        Light pt;
-        pt.type = LightType::Point;
-        pt.position = pos;
-        lights.push_back(pt);
-    }
-
-    // You can optionally add a spotlight later (usually follows the camera)
+void DirectionalLight::uploadToShader(const Shader& shader, int /*index*/) const
+{
+    shader.setVec3("dirLight.direction", m_desc.direction);
+    shader.setVec3("dirLight.ambient", m_desc.ambient);
+    shader.setVec3("dirLight.diffuse", m_desc.diffuse);
+    shader.setVec3("dirLight.specular", m_desc.specular);
 }
 
-void LightingManager::uploadToShader(const Shader& shader, const glm::vec3& cameraPosition) const {
-    int pointIndex = 0;
+void DirectionalLight::drawShape(const Shader& /*shader*/) const
+{
+    // No visual shape for a directional light
+}
 
-    for (size_t i = 0; i < lights.size(); ++i) {
-        const Light& light = lights[i];
+//------------------------------------------------------------------------------
+// PointLight
+PointLight::PointLight(const PointLightDesc& desc)
+    : m_desc(desc)
+{
+}
 
-        switch (light.type) {
-        case LightType::Directional:
-            shader.setVec3("dirLight.direction", light.direction);
-            shader.setVec3("dirLight.ambient", light.ambient);
-            shader.setVec3("dirLight.diffuse", light.diffuse);
-            shader.setVec3("dirLight.specular", light.specular);
-            break;
+void PointLight::uploadToShader(const Shader& shader, int index) const
+{
+    std::string prefix = "pointLights[" + std::to_string(index) + "]";
+    shader.setVec3(prefix + ".position", m_desc.position);
+    shader.setVec3(prefix + ".ambient", m_desc.ambient);
+    shader.setVec3(prefix + ".diffuse", m_desc.diffuse);
+    shader.setVec3(prefix + ".specular", m_desc.specular);
+    shader.setFloat(prefix + ".constant", m_desc.constant);
+    shader.setFloat(prefix + ".linear", m_desc.linear);
+    shader.setFloat(prefix + ".quadratic", m_desc.quadratic);
+}
 
-        case LightType::Point: {
-            std::string prefix = "pointLights[" + std::to_string(pointIndex) + "]";
-            shader.setVec3(prefix + ".position", light.position);
-            shader.setVec3(prefix + ".ambient", light.ambient);
-            shader.setVec3(prefix + ".diffuse", light.diffuse);
-            shader.setVec3(prefix + ".specular", light.specular);
-            shader.setFloat(prefix + ".constant", light.constant);
-            shader.setFloat(prefix + ".linear", light.linear);
-            shader.setFloat(prefix + ".quadratic", light.quadratic);
-            pointIndex++;
-            break;
+void PointLight::drawShape(const Shader& shader) const
+{
+    initCube();
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), m_desc.position)
+        * glm::scale(glm::mat4(1.0f), glm::vec3(0.2f));
+    shader.setMat4("model", model);
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
+//------------------------------------------------------------------------------
+// SpotLight
+SpotLight::SpotLight(const SpotLightDesc& desc)
+    : m_desc(desc)
+{
+}
+
+void SpotLight::uploadToShader(const Shader& shader, int /*index*/) const
+{
+    shader.setVec3("spotLight.position", m_desc.position);
+    shader.setVec3("spotLight.direction", m_desc.direction);
+    shader.setVec3("spotLight.ambient", m_desc.ambient);
+    shader.setVec3("spotLight.diffuse", m_desc.diffuse);
+    shader.setVec3("spotLight.specular", m_desc.specular);
+    shader.setFloat("spotLight.constant", m_desc.constant);
+    shader.setFloat("spotLight.linear", m_desc.linear);
+    shader.setFloat("spotLight.quadratic", m_desc.quadratic);
+    shader.setFloat("spotLight.cutOff", m_desc.cutOff);
+    shader.setFloat("spotLight.outerCutOff", m_desc.outerCutOff);
+}
+
+void SpotLight::drawShape(const Shader& /*shader*/) const
+{
+    // Visualization of a spot light can be implemented here
+}
+
+//------------------------------------------------------------------------------
+// LightingManager
+void LightingManager::addDirectional(const DirectionalLightDesc& desc)
+{
+    m_lights.push_back(std::make_unique<DirectionalLight>(desc));
+}
+
+void LightingManager::addPoint(const PointLightDesc& desc)
+{
+    m_lights.push_back(std::make_unique<PointLight>(desc));
+}
+
+void LightingManager::addSpot(const SpotLightDesc& desc)
+{
+    m_lights.push_back(std::make_unique<SpotLight>(desc));
+}
+
+void LightingManager::uploadToShader(const Shader& shader) const
+{
+    int pointCount = 0;
+    for (const auto& light : m_lights) {
+        if (auto dl = dynamic_cast<DirectionalLight*>(light.get())) {
+            dl->uploadToShader(shader);
         }
-
-        case LightType::Spot:
-            shader.setVec3("spotLight.position", light.position);
-            shader.setVec3("spotLight.direction", light.direction);
-            shader.setVec3("spotLight.ambient", light.ambient);
-            shader.setVec3("spotLight.diffuse", light.diffuse);
-            shader.setVec3("spotLight.specular", light.specular);
-            shader.setFloat("spotLight.constant", light.constant);
-            shader.setFloat("spotLight.linear", light.linear);
-            shader.setFloat("spotLight.quadratic", light.quadratic);
-            shader.setFloat("spotLight.cutOff", light.cutOff);
-            shader.setFloat("spotLight.outerCutOff", light.outerCutOff);
-            break;
+        else if (auto pl = dynamic_cast<PointLight*>(light.get())) {
+            pl->uploadToShader(shader, pointCount);
+            ++pointCount;
+        }
+        else if (auto sl = dynamic_cast<SpotLight*>(light.get())) {
+            sl->uploadToShader(shader);
         }
     }
+    shader.setInt("NR_POINT_LIGHTS", pointCount);
+}
 
-    shader.setVec3("viewPos", cameraPosition);
+void LightingManager::drawShapes(const Shader& shader) const
+{
+    for (const auto& light : m_lights) {
+        light->drawShape(shader);
+    }
 }
